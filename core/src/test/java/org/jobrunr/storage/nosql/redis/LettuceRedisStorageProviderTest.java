@@ -23,25 +23,33 @@ public class LettuceRedisStorageProviderTest extends StorageProviderTest {
 
     private static RedisClient redisClient;
 
+    private static StatefulRedisConnection<String, String> connection;
+
     @Override
     protected void cleanup() {
-        RedisClient redisClient = getRedisClient();
-        try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-            RedisCommands<String, String> commands = connection.sync();
-            commands.flushall();
-        }
+        connection = getRedisConnection();
+        RedisCommands<String, String> commands = connection.sync();
+        commands.flushall();
     }
 
     @Override
     protected StorageProvider getStorageProvider() {
-        final LettuceRedisStorageProvider lettuceRedisStorageProvider = new LettuceRedisStorageProvider(getRedisClient(), rateLimit().withoutLimits());
+        final LettuceRedisStorageProvider lettuceRedisStorageProvider = new LettuceRedisStorageProvider(connection, rateLimit().withoutLimits());
         lettuceRedisStorageProvider.setJobMapper(new JobMapper(new JacksonJsonMapper()));
         return lettuceRedisStorageProvider;
     }
 
     @AfterAll
     public static void shutdownRedisClient() {
+        getRedisConnection().close();
         getRedisClient().shutdown();
+    }
+
+    private static StatefulRedisConnection<String, String> getRedisConnection() {
+        if (connection == null) {
+            connection = getRedisClient().connect();
+        }
+        return connection;
     }
 
     private static RedisClient getRedisClient() {

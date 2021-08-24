@@ -3,9 +3,6 @@ package org.jobrunr.storage.nosql.redis;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.support.ConnectionPoolSupport;
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.jobrunr.storage.nosql.common.migrations.NoSqlMigrationByClass;
 import org.jobrunr.storage.nosql.redis.migrations.M001_JedisRemoveJobStatsAndUseMetadata;
 import org.junit.jupiter.api.AfterEach;
@@ -30,18 +27,18 @@ class LettuceRedisDBCreatorTest {
 
     @Mock
     private LettuceRedisStorageProvider lettuceRedisStorageProviderMock;
-    private GenericObjectPool<StatefulRedisConnection<String, String>> redisConnectionPool;
+    private StatefulRedisConnection<String, String> connection;
     private LettuceRedisDBCreator lettuceRedisDBCreator;
 
     @BeforeEach
     public void setupDBCreator() {
-        redisConnectionPool = redisConnectionPool();
-        lettuceRedisDBCreator = new LettuceRedisDBCreator(lettuceRedisStorageProviderMock, redisConnectionPool, "");
+        connection = getRedisClient().connect();
+        lettuceRedisDBCreator = new LettuceRedisDBCreator(lettuceRedisStorageProviderMock, connection, "");
     }
 
     @AfterEach
     public void teardownPool() {
-        redisConnectionPool.close();
+        connection.close();
     }
 
     @Test
@@ -55,15 +52,7 @@ class LettuceRedisDBCreatorTest {
 
     }
 
-    private GenericObjectPool<StatefulRedisConnection<String, String>> redisConnectionPool() {
-        return ConnectionPoolSupport.createGenericObjectPool(() -> createConnection(getRedisClient()), new GenericObjectPoolConfig());
-    }
-
     private RedisClient getRedisClient() {
         return RedisClient.create(RedisURI.create(redisContainer.getContainerIpAddress(), redisContainer.getMappedPort(6379)));
-    }
-
-    StatefulRedisConnection<String, String> createConnection(RedisClient redisClient) {
-        return redisClient.connect();
     }
 }
